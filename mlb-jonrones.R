@@ -14,14 +14,14 @@ library(gt)
 teams <- get_reference_team_mlb()
 
 teams_standings <- get_reference_team_mlb(stats = "pitching") %>%
-  select(tm, w, l)
+  select(tm, w, l, ra = r)
 
 df <- teams %>%
-  select(tm, h, x2b, x3b, hr) %>%
+  select(tm, r, h, x2b, x3b, hr) %>%
   arrange(desc(hr)) %>%
   left_join(teams_standings) %>%
   filter(!(tm %in% c("Tm", "", "League Average"))) %>%
-  mutate_at(c("h", "l", "x2b", "x3b", "w", "hr"), as.numeric)
+  mutate_at(c("h", "l", "x2b", "x3b", "w", "hr", "r", "ra"), as.numeric)
 
 logos <- get_png_logos() %>%
   select(tm = full_name, logo = logoscoreboard)
@@ -55,15 +55,18 @@ combine_word <- function(tm, w, l, logo) {
 
 
 df %>%
-  arrange(desc(w)) %>%
+  arrange(desc(w),
+          l) %>%
   mutate(
     combo = combine_word(tm, w, l, logo),
     combo = map(combo, gt::html)
   ) %>%
-  select(combo, h, x2b, x3b, hr) %>%
+  select(combo, r, ra, h, x2b, x3b, hr) %>%
   gt() %>%
   cols_label(
     combo = gt::html("<span style='font-weight:bold;font-size:12px'>EQUIPO</span>"),
+    r = gt::html("<span style='font-weight:bold;font-size:12px'>RUNS<sup style='font-weight:bold;font-size:6px'>1</sup></span>"),
+    ra = gt::html("<span style='font-weight:bold;font-size:12px'>RUNS<sup style='font-weight:bold;font-size:6px'>2</sup></span>"),
     h = gt::html("<span style='font-weight:bold;font-size:12px'>HITS</span>"),
     hr = gt::html("<span style='font-weight:bold;font-size:12px'>HRUN</span>"),
     x2b = gt::html("<span style='font-weight:bold;font-size:12px'>2B</span>"),
@@ -71,7 +74,7 @@ df %>%
   ) %>%
   tab_header(
     title = md("<img src='https://www.mlbstatic.com/team-logos/league-on-dark/1.svg' style='height:50px;'>"),
-    subtitle = md(paste0("Bateo por Equipos  | A ", format(Sys.Date(), format = "%d %B, %Y")))
+    subtitle = md(paste0("Pequeño Resumen por Equipos  | A ", format(Sys.Date(), format = "%d %B, %Y")))
   ) %>%
   tab_options(
     data_row.padding = px(4),
@@ -82,8 +85,27 @@ df %>%
   ) %>%
   cols_align(
     align = "center",
-    columns = c(h:hr)
+    columns = c(r:hr)
   ) %>%
+  data_color(
+    columns = c(r),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "Redmonder::sPBIGn",
+        direction = 1
+      ) %>% as.character(),
+      domain = c(min(df$r), max(df$r))
+    ))  %>%
+  data_color(
+    columns = c(ra),
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(
+        palette = "Redmonder::sPBIGn",
+        direction = 1
+      ) %>% as.character(),
+      domain = c(min(df$ra), max(df$ra))
+    )) %>%
+
   data_color(
     columns = c(h),
     colors = scales::col_numeric(
@@ -146,9 +168,17 @@ df %>%
     footnotes.padding = px(1)
   ) %>%
   tab_source_note(
-    source_note = md("<div><b>Grafica por</b> : <i>\n Ivo Villanueva @elcheff<i>
+    source_note = md("<div><sup style='font-weight:bold;font-size:6px'>1</sup><i>Carreras Realizadas<i></div>
+                        <div><sup style='font-weight:bold;font-size:6px'>2</sup><i>Carreras Permitidas<i></div>
+    <div><b>Grafica por</b> : <i>\n Ivo Villanueva @elcheff<i>
                        <div><b>Datos por</b> : \n<i>mlbstatsR y @baseball_ref<i>")
   ) %>%
+  gtsave("jonrones.html")
+
+# 30 de Agosto 2021 -----------------------------------------------------
+# Ivo Villanueva ----------------------------------------------------------
+
+
   gtsave("jonrones.html")
 
 # 30 de Agosto 2021 -----------------------------------------------------
